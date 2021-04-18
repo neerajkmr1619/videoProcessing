@@ -1,50 +1,42 @@
-using System.Collections.Generic;
-using System.Net.Http;
-using System.Threading.Tasks;
 using Microsoft.Azure.WebJobs;
 using Microsoft.Azure.WebJobs.Extensions.DurableTask;
-using Microsoft.Azure.WebJobs.Extensions.Http;
 using Microsoft.Azure.WebJobs.Host;
 using Microsoft.Extensions.Logging;
+using System;
+using System.IO;
+using System.Threading.Tasks;
 
 namespace VideoProcessor
 {
-    public static class Function1
+    public static class ActivityFunctions
     {
-        [FunctionName("Function1")]
-        public static async Task<List<string>> RunOrchestrator(
-            [OrchestrationTrigger] IDurableOrchestrationContext context)
+        
+        [FunctionName("TranscodeVideo")]
+        public static async Task<string> TranscodeVideo([ActivityTrigger] string inputVideo, ILogger log)
         {
-            var outputs = new List<string>();
+            log.LogInformation($"Transcode video {inputVideo}.");
 
-            // Replace "hello" with the name of your Durable Activity Function.
-            outputs.Add(await context.CallActivityAsync<string>("Function1_Hello", "Tokyo"));
-            outputs.Add(await context.CallActivityAsync<string>("Function1_Hello", "Seattle"));
-            outputs.Add(await context.CallActivityAsync<string>("Function1_Hello", "London"));
-
-            // returns ["Hello Tokyo!", "Hello Seattle!", "Hello London!"]
-            return outputs;
+            await Task.Delay(5000);
+            return $"{Path.GetFileNameWithoutExtension(inputVideo)}-transcoded.mp4";
         }
 
-        [FunctionName("Function1_Hello")]
-        public static string SayHello([ActivityTrigger] string name, ILogger log)
+        [FunctionName("ExtractThumbnail")]
+        public static async Task<string> ExtractThumbnail([ActivityTrigger] string inputVideo, ILogger log)
         {
-            log.LogInformation($"Saying hello to {name}.");
-            return $"Hello {name}!";
+            log.LogInformation($"Extract thumbnail {inputVideo}.");
+
+            await Task.Delay(5000);
+            return $"{Path.GetFileNameWithoutExtension(inputVideo)}-thumbnail.png";
+        }
+        [FunctionName("PrependIntro")]
+        public static async Task<string> PrependIntro([ActivityTrigger] string inputVideo, ILogger log)
+        {
+            var introLocation = Environment.GetEnvironmentVariable("Introduction");
+            log.LogInformation($"Pretending intro {inputVideo}.");
+
+            await Task.Delay(5000);
+            return $"{Path.GetFileNameWithoutExtension(inputVideo)}-withintro.mp4";
         }
 
-        [FunctionName("Function1_HttpStart")]
-        public static async Task<HttpResponseMessage> HttpStart(
-            [HttpTrigger(AuthorizationLevel.Anonymous, "get", "post")] HttpRequestMessage req,
-            [DurableClient] IDurableOrchestrationClient starter,
-            ILogger log)
-        {
-            // Function input comes from the request content.
-            string instanceId = await starter.StartNewAsync("Function1", null);
-
-            log.LogInformation($"Started orchestration with ID = '{instanceId}'.");
-
-            return starter.CreateCheckStatusResponse(req, instanceId);
-        }
     }
 }
